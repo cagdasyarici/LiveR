@@ -1,0 +1,43 @@
+services:
+  liverelay-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - HOST=0.0.0.0
+      - INSTANCE_ID=instance-dev
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=dev-secret-key
+      - API_KEY=dev-api-key
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=pretty
+      - METRICS_ENABLED=true
+    volumes:
+      - ../src:/app/src
+      - ../tsconfig.json:/app/tsconfig.json
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - liverelay-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - liverelay-network
+
+networks:
+  liverelay-network:
+    driver: bridge

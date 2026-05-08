@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /c/CHADOWA/liverelay/.claude/rules)",
+      "Bash(mkdir -p /c/CHADOWA/liverelay/.claude/sprints)",
+      "Bash(npm install:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(xargs -r docker rm -f)",
+      "Bash(curl -s http://localhost:3002/api/health)",
+      "Bash(docker exec:*)",
+      "Bash(docker network:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:3001/api/health)",
+      "Bash(npx tsx:*)",
+      "Bash(kill %1)",
+      "Bash(curl:*)",
+      "Bash(echo \"EXIT: $?\")"
+    ]
+  }
+}

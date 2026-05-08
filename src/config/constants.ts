@@ -1,0 +1,32 @@
+export const DEFAULTS = {
+  PORT: 3001,
+  HOST: '0.0.0.0',
+  NODE_ENV: 'development',
+  INSTANCE_ID: 'instance-1',
+
+  WS_PATH: '/ws',
+  WS_MAX_PAYLOAD_SIZE: 65536,
+  WS_HEARTBEAT_INTERVAL: 30000,
+  WS_HEARTBEAT_TIMEOUT: 10000,
+  WS_MAX_CONNECTIONS: 10000,
+  WS_MAX_ROOMS_PER_CONNECTION: 50,
+
+  JWT_ALGORITHM: 'HS256',
+
+  REDIS_URL: 'redis://localhost:6379',
+  REDIS_DB: 0,
+  REDIS_KEY_PREFIX: 'liverelay:',
+
+  RATE_LIMIT_WINDOW: 60000,
+  RATE_LIMIT_MAX_MESSAGES: 100,
+  RATE_LIMIT_MAX_REQUESTS: 60,
+
+  LOG_LEVEL: 'info',
+  LOG_FORMAT: 'json',
+
+  METRICS_ENABLED: true,
+  METRICS_PATH: '/api/metrics',
+
+  CLUSTER_ENABLED: false,
+  CLUSTER_WORKERS: 0,
+} as const;

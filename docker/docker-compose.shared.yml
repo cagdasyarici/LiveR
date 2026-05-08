@@ -1,0 +1,65 @@
+## LiveRelay — Shared Infrastructure Mode
+## Kullanım: docker compose -f docker-compose.shared.yml up -d
+## Önce shared network oluşturun: docker network create microservices-network
+## Redis, EventForge tarafından sağlanır (shared-redis container)
+
+services:
+  liverelay:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: liverelay-app
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - INSTANCE_ID=instance-1
+      - REDIS_URL=redis://shared-redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - API_KEY=${API_KEY:-dev-api-key-change-in-production}
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      - METRICS_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - microservices-network
+
+  liverelay-2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: liverelay-app-2
+    ports:
+      - "3002:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - INSTANCE_ID=instance-2
+      - REDIS_URL=redis://shared-redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - API_KEY=${API_KEY:-dev-api-key-change-in-production}
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      - METRICS_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - microservices-network
+
+  dashboard:
+    image: nginx:alpine
+    container_name: liverelay-dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ../dashboard:/usr/share/nginx/html:ro
+    depends_on:
+      - liverelay
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    external: true

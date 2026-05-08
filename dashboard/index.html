@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveRelay Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .header h1 {
+      font-size: 2rem;
+      color: #f43f5e;
+      margin-bottom: 0.5rem;
+    }
+    .header .subtitle {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 0.75rem;
+    }
+    .status {
+      font-size: 0.9rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      display: inline-block;
+    }
+    .status.healthy   { background: #065f46; color: #6ee7b7; }
+    .status.degraded  { background: #78350f; color: #fcd34d; }
+    .status.unhealthy { background: #7f1d1d; color: #fca5a5; }
+    .status.loading   { background: #1e293b; color: #94a3b8; }
+
+    /* ── Mode tabs ── */
+    .mode-tabs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .mode-tab {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 0.4rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .mode-tab.active {
+      background: #f43f5e;
+      border-color: #f43f5e;
+      color: white;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1.25rem;
+      border: 1px solid #334155;
+    }
+    .card .label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+    .card .value {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .card .sub {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 0.2rem;
+    }
+    .card.highlight { border-color: #f43f5e44; }
+    .card.highlight .value { color: #f43f5e; }
+
+    /* ── Cluster panel ── */
+    .cluster-wrapper {
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .instance-panel {
+      background: #1e293b;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      padding: 1.25rem;
+    }
+    .instance-panel h3 {
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .instance-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #64748b;
+      display: inline-block;
+    }
+    .instance-dot.healthy   { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+    .instance-dot.unhealthy { background: #ef4444; }
+    .instance-dot.loading   { background: #eab308; }
+
+    .inst-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .inst-card {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 0.75rem;
+      border: 1px solid #1e293b;
+      text-align: center;
+    }
+    .inst-card .lbl { font-size: 0.7rem; color: #64748b; margin-bottom: 0.2rem; }
+    .inst-card .val { font-size: 1.4rem; font-weight: 700; color: #f8fafc; }
+
+    .redis-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.25rem;
+    }
+    .redis-badge.connected    { background: #065f46; color: #6ee7b7; }
+    .redis-badge.disconnected { background: #7f1d1d; color: #fca5a5; }
+
+    /* ── Common section ── */
+    .section {
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+    }
+    .section h2 {
+      font-size: 1.1rem;
+      color: #94a3b8;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 0.5rem;
+    }
+
+    .log-container {
+      background: #1e293b;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      padding: 1rem;
+      max-height: 260px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+    }
+    .log-entry {
+      padding: 0.2rem 0;
+      border-bottom: 1px solid #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .log-entry .time   { color: #64748b; }
+    .log-entry .inst   { color: #818cf8; font-weight: 600; }
+    .log-entry .msg    { color: #e2e8f0; }
+    .log-entry .error  { color: #f87171; }
+    .log-entry .ok     { color: #4ade80; }
+
+    /* ── Config panel ── */
+    .config-panel {
+      background: #1e293b;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      padding: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      max-width: 1100px;
+      margin: 0 auto 2rem;
+    }
+    .config-panel label { color: #94a3b8; font-size: 0.82rem; }
+    .config-panel input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+    .config-panel button {
+      background: #f43f5e;
+      color: white;
+      border: none;
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .config-panel button:hover { background: #e11d48; }
+    .config-panel button.secondary {
+      background: #334155;
+    }
+    .config-panel button.secondary:hover { background: #475569; }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>LiveRelay Dashboard</h1>
+    <div class="subtitle">Real-time WebSocket Notification Service</div>
+    <span id="status" class="status loading">Loading...</span>
+  </div>
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="switchMode('single')" id="tab-single">Single Instance</button>
+    <button class="mode-tab"        onclick="switchMode('cluster')" id="tab-cluster">Cluster View (2 Instances)</button>
+  </div>
+
+  <!-- ══════════════ SINGLE MODE ══════════════ -->
+  <div id="single-mode">
+    <div class="config-panel">
+      <label>Server URL:</label>
+      <input id="serverUrl" type="text" value="http://localhost:3001" style="width: 240px">
+      <label>Refresh (ms):</label>
+      <input id="refreshRate" type="number" value="500" style="width: 70px">
+      <button onclick="startPolling()">Connect</button>
+      <button class="secondary" onclick="switchToInstance(1)">→ Instance-1</button>
+      <button class="secondary" onclick="switchToInstance(2)">→ Instance-2</button>
+    </div>
+
+    <div class="grid">
+      <div class="card highlight">
+        <div class="label">Active Connections</div>
+        <div class="value" id="connections">-</div>
+        <div class="sub" id="uniqueUsers">WebSocket clients</div>
+      </div>
+      <div class="card">
+        <div class="label">Active Rooms</div>
+        <div class="value" id="rooms">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Uptime</div>
+        <div class="value" id="uptime">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Redis</div>
+        <div class="value" id="redis" style="font-size:1.3rem">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Msgs Delivered (Server→Client)</div>
+        <div class="value" id="msgSent">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Msgs From Clients (Client→Server)</div>
+        <div class="value" id="msgRecv">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Errors</div>
+        <div class="value" id="errors">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Rate Limit Hits</div>
+        <div class="value" id="rateHits">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ CLUSTER MODE ══════════════ -->
+  <div id="cluster-mode" class="hidden">
+    <div class="config-panel">
+      <label>Instance-1:</label>
+      <input id="inst1Url" type="text" value="http://localhost:3001" style="width:200px">
+      <label>Instance-2:</label>
+      <input id="inst2Url" type="text" value="http://localhost:3002" style="width:200px">
+      <label>Refresh (ms):</label>
+      <input id="clusterRefreshRate" type="number" value="500" style="width:70px">
+      <button onclick="startClusterPolling()">Watch Cluster</button>
+    </div>
+
+    <div class="cluster-wrapper">
+      <!-- Instance 1 -->
+      <div class="instance-panel" id="inst1-panel">
+        <h3>
+          <span class="instance-dot loading" id="inst1-dot"></span>
+          Instance-1
+          <span id="inst1-status-badge" class="status loading" style="font-size:0.7rem; margin-left:auto">Loading</span>
+        </h3>
+        <div class="inst-grid">
+          <div class="inst-card">
+            <div class="lbl">Connections</div>
+            <div class="val" id="i1-conn">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Rooms</div>
+            <div class="val" id="i1-rooms">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Uptime</div>
+            <div class="val" id="i1-uptime" style="font-size:1rem; padding-top:0.25rem">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Delivered</div>
+            <div class="val" id="i1-sent">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">From Clients</div>
+            <div class="val" id="i1-recv">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Rate Hits</div>
+            <div class="val" id="i1-rate">-</div>
+          </div>
+        </div>
+        <div>
+          Redis: <span class="redis-badge" id="i1-redis">-</span>
+        </div>
+      </div>
+
+      <!-- Instance 2 -->
+      <div class="instance-panel" id="inst2-panel">
+        <h3>
+          <span class="instance-dot loading" id="inst2-dot"></span>
+          Instance-2
+          <span id="inst2-status-badge" class="status loading" style="font-size:0.7rem; margin-left:auto">Loading</span>
+        </h3>
+        <div class="inst-grid">
+          <div class="inst-card">
+            <div class="lbl">Connections</div>
+            <div class="val" id="i2-conn">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Rooms</div>
+            <div class="val" id="i2-rooms">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Uptime</div>
+            <div class="val" id="i2-uptime" style="font-size:1rem; padding-top:0.25rem">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Delivered</div>
+            <div class="val" id="i2-sent">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">From Clients</div>
+            <div class="val" id="i2-recv">-</div>
+          </div>
+          <div class="inst-card">
+            <div class="lbl">Rate Hits</div>
+            <div class="val" id="i2-rate">-</div>
+          </div>
+        </div>
+        <div>
+          Redis: <span class="redis-badge" id="i2-redis">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cluster totals -->
+    <div class="grid" style="max-width:1100px; margin: 0 auto 2rem">
+      <div class="card highlight">
+        <div class="label">Total Connections (Cluster)</div>
+        <div class="value" id="cluster-total-conn">-</div>
+        <div class="sub">across all instances</div>
+      </div>
+      <div class="card">
+        <div class="label">Total Rooms (Cluster)</div>
+        <div class="value" id="cluster-total-rooms">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Total Msgs Delivered</div>
+        <div class="value" id="cluster-total-sent">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Total Rate Limit Hits</div>
+        <div class="value" id="cluster-total-rate">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ACTIVITY LOG ══════════════ -->
+  <div class="section">
+    <h2>Activity Log</h2>
+    <div id="log" class="log-container">
+      <div class="log-entry"><span class="time">[--:--:--]</span> <span class="msg">Waiting for connection...</span></div>
+    </div>
+  </div>
+
+  <script>
+    let pollTimer        = null;
+    let clusterPollTimer = null;
+    let currentMode      = 'single';
+    const logEl          = document.getElementById('log');
+
+    // ── Utilities ──────────────────────────────────────────────────────────────
+
+    function addLog(msg, type = 'msg', inst = '') {
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const instPart = inst ? `<span class="inst">[${inst}]</span> ` : '';
+      entry.innerHTML = `<span class="time">[${time}]</span> ${instPart}<span class="${type}">${msg}</span>`;
+      logEl.prepend(entry);
+      if (logEl.children.length > 150) logEl.removeChild(logEl.lastChild);
+    }
+
+    function formatUptime(seconds) {
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      if (d > 0) return `${d}d ${h}h`;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function parsePrometheus(text) {
+      const metrics = {};
+      for (const line of text.split('\n')) {
+        if (line.startsWith('#') || line.trim() === '') continue;
+        const parts = line.split(' ');
+        if (parts.length === 2) metrics[parts[0]] = parseFloat(parts[1]);
+      }
+      return metrics;
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('single-mode').classList.toggle('hidden', mode !== 'single');
+      document.getElementById('cluster-mode').classList.toggle('hidden', mode !== 'cluster');
+      document.getElementById('tab-single').classList.toggle('active', mode === 'single');
+      document.getElementById('tab-cluster').classList.toggle('active', mode === 'cluster');
+
+      if (mode === 'cluster') {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        startClusterPolling();
+      } else {
+        if (clusterPollTimer) { clearInterval(clusterPollTimer); clusterPollTimer = null; }
+        startPolling();
+      }
+    }
+
+    function switchToInstance(n) {
+      document.getElementById('serverUrl').value = `http://localhost:${n === 1 ? 3001 : 3002}`;
+      startPolling();
+    }
+
+    // ── Single Instance ────────────────────────────────────────────────────────
+
+    async function fetchData() {
+      const baseUrl  = document.getElementById('serverUrl').value;
+      const statusEl = document.getElementById('status');
+
+      try {
+        const healthRes = await fetch(`${baseUrl}/api/health`);
+        const health    = await healthRes.json();
+
+        statusEl.textContent = health.status.charAt(0).toUpperCase() + health.status.slice(1);
+        statusEl.className   = `status ${health.status}`;
+
+        document.getElementById('connections').textContent = health.connections;
+        document.getElementById('rooms').textContent       = health.rooms;
+        document.getElementById('uptime').textContent      = formatUptime(health.uptime);
+        document.getElementById('redis').textContent       = health.redis;
+
+        try {
+          const metricsRes  = await fetch(`${baseUrl}/api/metrics`);
+          const metricsText = await metricsRes.text();
+          const m           = parsePrometheus(metricsText);
+
+          document.getElementById('msgSent').textContent  = (m['liverelay_messages_sent_total']     || 0).toLocaleString();
+          document.getElementById('msgRecv').textContent  = (m['liverelay_messages_received_total'] || 0).toLocaleString();
+          document.getElementById('errors').textContent   = m['liverelay_errors_total']             || 0;
+          document.getElementById('rateHits').textContent = m['liverelay_rate_limit_hits_total']    || 0;
+        } catch { /* metrics might not be available */ }
+
+      } catch (err) {
+        statusEl.textContent = 'Unreachable';
+        statusEl.className   = 'status unhealthy';
+        addLog(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      const rate = parseInt(document.getElementById('refreshRate').value) || 2000;
+      addLog(`Connected to ${document.getElementById('serverUrl').value} (refresh: ${rate}ms)`, 'ok');
+      fetchData();
+      pollTimer = setInterval(fetchData, rate);
+    }
+
+    // ── Cluster Mode ───────────────────────────────────────────────────────────
+
+    async function fetchInstanceData(url, prefix, instName) {
+      const dot    = document.getElementById(`${prefix}-dot`);
+      const badge  = document.getElementById(`${prefix}-status-badge`);
+
+      try {
+        const healthRes = await fetch(`${url}/api/health`);
+        const health    = await healthRes.json();
+
+        dot.className    = `instance-dot ${health.status}`;
+        badge.textContent = health.status.charAt(0).toUpperCase() + health.status.slice(1);
+        badge.className   = `status ${health.status}`;
+
+        document.getElementById(`${prefix.replace('inst', 'i')}-conn`).textContent  = health.connections;
+        document.getElementById(`${prefix.replace('inst', 'i')}-rooms`).textContent = health.rooms;
+        document.getElementById(`${prefix.replace('inst', 'i')}-uptime`).textContent = formatUptime(health.uptime);
+
+        const redisBadge = document.getElementById(`${prefix.replace('inst', 'i')}-redis`);
+        redisBadge.textContent = health.redis === 'connected' ? '● connected' : '✕ disconnected';
+        redisBadge.className   = `redis-badge ${health.redis === 'connected' ? 'connected' : 'disconnected'}`;
+
+        let sent = 0, recv = 0, rate = 0;
+        try {
+          const metricsRes  = await fetch(`${url}/api/metrics`);
+          const metricsText = await metricsRes.text();
+          const m           = parsePrometheus(metricsText);
+          sent = m['liverelay_messages_sent_total']     || 0;
+          recv = m['liverelay_messages_received_total'] || 0;
+          rate = m['liverelay_rate_limit_hits_total']   || 0;
+        } catch { /* ok */ }
+
+        document.getElementById(`${prefix.replace('inst', 'i')}-sent`).textContent = sent.toLocaleString();
+        document.getElementById(`${prefix.replace('inst', 'i')}-recv`).textContent = recv.toLocaleString();
+        document.getElementById(`${prefix.replace('inst', 'i')}-rate`).textContent = rate;
+
+        return { connections: health.connections, rooms: health.rooms, sent, rate, ok: true };
+      } catch {
+        dot.className     = 'instance-dot unhealthy';
+        badge.textContent = 'Unreachable';
+        badge.className   = 'status unhealthy';
+        addLog(`${instName} unreachable`, 'error', instName);
+        return { connections: 0, rooms: 0, sent: 0, rate: 0, ok: false };
+      }
+    }
+
+    async function fetchClusterData() {
+      const url1 = document.getElementById('inst1Url').value;
+      const url2 = document.getElementById('inst2Url').value;
+
+      const [d1, d2] = await Promise.all([
+        fetchInstanceData(url1, 'inst1', 'instance-1'),
+        fetchInstanceData(url2, 'inst2', 'instance-2'),
+      ]);
+
+      document.getElementById('cluster-total-conn').textContent  = (d1.connections + d2.connections).toLocaleString();
+      document.getElementById('cluster-total-rooms').textContent = (d1.rooms + d2.rooms).toLocaleString();
+      document.getElementById('cluster-total-sent').textContent  = (d1.sent + d2.sent).toLocaleString();
+      document.getElementById('cluster-total-rate').textContent  = (d1.rate + d2.rate).toLocaleString();
+    }
+
+    function startClusterPolling() {
+      if (clusterPollTimer) clearInterval(clusterPollTimer);
+      const rate = parseInt(document.getElementById('clusterRefreshRate').value) || 2000;
+      addLog(`Cluster polling started (refresh: ${rate}ms)`, 'ok');
+      fetchClusterData();
+      clusterPollTimer = setInterval(fetchClusterData, rate);
+    }
+
+    // Auto-start
+    startPolling();
+  </script>
+</body>
+</html>
